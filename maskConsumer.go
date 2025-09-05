@@ -59,18 +59,18 @@ func Maskify(input []rune, closingSym rune) ([]rune, int, error) {
 
 	for i := 0; i < len(input); i++ {
 		content = append(content, input[i])
-		close, open := enclosingSymbols[input[i]]
-		
+		closing, opening := enclosingSymbols[input[i]]
+
 		// Check for closing syms first because some closing symbols can be the same as their opening
 		if input[i] == closingSym {
 			// Closing Sym found, all nested content in this stack should be masked
-			return []rune{nestedContent, closingSym}, i, nil 
+			return []rune{nestedContent, closingSym}, i, nil
 		}
-		
-		if open {
+
+		if opening {
 			// State A: Closing sym found -> Mask returned
 			// State B: Closing sym found but no content wanted -> empty rune slice returned
-			innerContent, depth, err := Maskify(input[i + 1:], close)
+			innerContent, depth, err := Maskify(input[i+1:], closing)
 			if err != nil {
 				return []rune{}, 0, err
 			}
@@ -93,14 +93,14 @@ func Maskify(input []rune, closingSym rune) ([]rune, int, error) {
 	return content, len(input), nil
 }
 
-type MaskConsumer struct {}
+type MaskConsumer struct{}
 
-func NewMaskConsumer() (*MaskConsumer) {
+func NewMaskConsumer() *MaskConsumer {
 	return &MaskConsumer{}
 }
 
 func (mc *MaskConsumer) Mask(input []rune) ([]rune, error) {
-	symbolsOnly := RemoveAlphanumeric(input)	
+	symbolsOnly := RemoveAlphanumeric(input)
 	maskedSymbols, _, err := Maskify(symbolsOnly, 0)
 	if err != nil {
 		return []rune{}, err
@@ -114,9 +114,9 @@ func (mc *MaskConsumer) Mask(input []rune) ([]rune, error) {
 	return compressed, nil
 }
 
-func (mc *MaskConsumer) Consume(in chan []rune) (chan[]rune, error) {
+func (mc *MaskConsumer) Consume(in chan []rune) (chan []rune, error) {
 	out := make(chan []rune, 100)
-	
+
 	go func() {
 		defer close(out)
 
@@ -125,7 +125,7 @@ func (mc *MaskConsumer) Consume(in chan []rune) (chan[]rune, error) {
 			if err != nil {
 				fmt.Println("consumer error with masking")
 			}
-	
+
 			out <- mask
 		}
 	}()

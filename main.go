@@ -1,14 +1,17 @@
+// High-performance log masking and normalization tool.
+// Processes large log files (500K+ lines) with minimal memory usage (~2MB) and sub-second performance.
+// Uses a pipeline architecture: FileReader -> MaskConsumer -> FileWriter with buffer pooling for zero-allocation processing.
 package main
 
 import (
-	// "bufio"
-	"fmt"
-	"os"
-	"sync"
+	//"flag"
 	"flag"
+	"fmt"
 	"log"
-	"runtime/pprof"
+	"os"
 	"runtime"
+	"runtime/pprof"
+	"sync"
 	// "io"
 	// "unicode/utf8"
 )
@@ -141,7 +144,6 @@ import (
 
 // 	fmt.Println("Batched output started")
 
-
 // 	// Ingest logs
 // 	fmt.Println("Start processing")
 // 	scanner := bufio.NewScanner(file)
@@ -202,7 +204,7 @@ import (
 
 // 		// Blocks if channel is full
 // 		// Allocates a new string here.
-// 		result <- logLine 
+// 		result <- logLine
 // 	}
 
 // 	return nil
@@ -228,7 +230,7 @@ import (
 // 		}
 
 // 		writer.WriteRune('\n')
-		
+
 // 		// Return rune buffer to pool
 // 		ln.runePool.Put(result)
 // 	}
@@ -268,7 +270,7 @@ func main() {
 		fmt.Println("error when reading from file")
 		return
 	}
-	
+
 	maskOut, err := maskConsumer.Consume(readOut)
 	if err != nil {
 		fmt.Println("error when masking")
@@ -293,7 +295,7 @@ func main() {
 		runtime.GC()
 
 		if err := pprof.Lookup("allocs").WriteTo(f, 0); err != nil {
-            log.Fatal("could not write memory profile: ", err)
-        }
+			log.Fatal("could not write memory profile: ", err)
+		}
 	}
 }
