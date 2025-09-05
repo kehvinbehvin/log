@@ -3,3 +3,4 @@ CLAUDE.md
 cpu.prof
 mem.prof
 /data/
+*.swp
