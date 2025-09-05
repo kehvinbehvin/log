@@ -1,23 +1,27 @@
-package main;
+package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"os"
-	"bufio"
 )
 
 type Store[T any] interface {
 	Get(key string) (T, error)
-	Put(key string, value T) (error)
-	Report(fileName string) (error)
+	Put(key string, value T) error
+	Reporter
+}
+
+type Reporter interface {
+	Report(fileName string) error
 }
 
 type MemoryStore[T any] struct {
 	data map[string]T
 }
 
-func NewMemoryStore() (*MemoryStore[bool]) {
+func NewMemoryStore() *MemoryStore[bool] {
 	return &MemoryStore[bool]{
 		data: make(map[string]bool),
 	}
@@ -33,12 +37,12 @@ func (m *MemoryStore[T]) Get(key string) (T, error) {
 	return value, nil
 }
 
-func (m *MemoryStore[T]) Put(key string, value T) (error) {
+func (m *MemoryStore[T]) Put(key string, value T) error {
 	m.data[key] = value // Hardcoded for dev, remove in prod
 	return nil
 }
 
-func (m *MemoryStore[T]) Report(filename string) (error) {
+func (m *MemoryStore[T]) Report(filename string) error {
 	file, err := os.Create(filename)
 	if err != nil {
 		return err
@@ -47,9 +51,9 @@ func (m *MemoryStore[T]) Report(filename string) (error) {
 
 	writer := bufio.NewWriter(file)
 	defer writer.Flush()
-	
+
 	for k := range m.data {
-		_, err := fmt.Fprint(writer, k + "\n")
+		_, err := fmt.Fprint(writer, k+"\n")
 		if err != nil {
 			return err
 		}
