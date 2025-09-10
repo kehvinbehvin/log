@@ -16,13 +16,11 @@ type Reader interface {
 
 type FileReader struct {
 	filePath string
-	bufPool  *RunePool
 }
 
-func NewFileReader(filePath string, bufPool *RunePool) *FileReader {
+func NewFileReader(filePath string) *FileReader {
 	return &FileReader{
 		filePath: filePath,
-		bufPool:  bufPool,
 	}
 }
 
@@ -38,11 +36,12 @@ func (f *FileReader) Read() (chan []rune, error) {
 		scanner := bufio.NewScanner(file)
 		var scanBuf []byte
 
-		for scanner.Scan() {
-			defer file.Close()
-			defer close(out)
+		defer file.Close()
+		defer close(out)
 
-			output := f.bufPool.Get()
+		for scanner.Scan() {
+
+			output := make([]rune, 0)
 			scanBuf = scanner.Bytes()
 
 			for len(scanBuf) > 0 {

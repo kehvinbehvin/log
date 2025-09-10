@@ -259,11 +259,12 @@ func main() {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
+	wg.Add(1)
 
-	bufPool := NewRunePool(1000, 32)
-	fileReader := NewFileReader("./data/raw/mixed.log", bufPool)
+	fileReader := NewFileReader("./data/raw/mini.log")
 	maskConsumer := NewMaskConsumer()
-	fileWriter := NewFileWriter("./data/results/data.log", bufPool, &wg)
+	fileWriter := NewFileBufferWriter("./data/results/data.log", &wg)
+	fileIntWriter := NewFileIntWriter("./data/results/data_int.log", &wg)
 
 	readOut, err := fileReader.Read()
 	if err != nil {
@@ -271,7 +272,7 @@ func main() {
 		return
 	}
 
-	maskOut, err := maskConsumer.Consume(readOut)
+	maskOut, tokenOut, err := maskConsumer.Consume(readOut)
 	if err != nil {
 		fmt.Println("error when masking")
 		return
@@ -280,6 +281,12 @@ func main() {
 	err = fileWriter.Write(maskOut)
 	if err != nil {
 		fmt.Println("error when writing")
+		return
+	}
+
+	err = fileIntWriter.Write(tokenOut)
+	if err != nil {
+		fmt.Println("error when writing tokens")
 		return
 	}
 

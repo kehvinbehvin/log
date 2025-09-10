@@ -4,29 +4,28 @@ import (
 	"bufio"
 	"errors"
 	"os"
+	"strings"
 	"sync"
 )
 
-type Writer interface {
-	Write(chan []rune) (error)
+type Writer[T any] interface {
+	Write(chan T) error
 }
 
-type FileWriter struct {
+type FileBufferWriter struct {
 	filePath string
-	bufPool *RunePool
-	wg *sync.WaitGroup
+	wg       *sync.WaitGroup
 }
 
-func NewFileWriter(filePath string, bufPool *RunePool, wg *sync.WaitGroup) (*FileWriter) {
-	return &FileWriter{
+func NewFileBufferWriter(filePath string, wg *sync.WaitGroup) *FileBufferWriter {
+	return &FileBufferWriter{
 		filePath: filePath,
-		bufPool: bufPool,
-		wg: wg,
+		wg:       wg,
 	}
 }
 
-func (fe *FileWriter) Write(in chan []rune) (error) {
-	file, err := os.Create(fe.filePath);
+func (fe *FileBufferWriter) Write(in chan []rune) error {
+	file, err := os.Create(fe.filePath)
 	if err != nil {
 		return errors.New("could not open output file")
 	}
@@ -39,13 +38,52 @@ func (fe *FileWriter) Write(in chan []rune) (error) {
 		defer fe.wg.Done()
 
 		for line := range in {
-			for _ , r := range line {
+			for _, r := range line {
 				writer.WriteRune(r)
 			}
-	
+
 			writer.WriteRune('\n')
-	
-			fe.bufPool.Put(line)
+		}
+	}()
+
+	return nil
+}
+
+type FileIntWriter struct {
+	filePath string
+	wg       *sync.WaitGroup
+}
+
+func NewFileIntWriter(filePath string, wg *sync.WaitGroup) *FileIntWriter {
+	return &FileIntWriter{
+		filePath: filePath,
+		wg:       wg,
+	}
+}
+
+func (fw *FileIntWriter) Write(in chan [][]rune) error {
+	file, err := os.Create(fw.filePath)
+	if err != nil {
+		return errors.New("could not open output file")
+	}
+
+	go func() {
+		defer file.Close()
+
+		writer := bufio.NewWriter(file)
+		defer writer.Flush()
+		defer fw.wg.Done()
+
+		for line := range in {
+			var sb strings.Builder
+			for _, runeSlice := range line {
+				sb.WriteString(string(runeSlice))
+				sb.WriteString(",")
+			}
+
+			s := sb.String()
+			writer.WriteString(s)
+			writer.WriteRune('\n')
 		}
 	}()
 
