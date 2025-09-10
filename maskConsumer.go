@@ -22,31 +22,12 @@ type Consumer interface {
 	Consume(chan []rune) (chan []rune, chan []int, error)
 }
 
-func RemoveAlphanumeric(input []rune) []rune {
-	content := make([]rune, len(input))
-	copy(content, input)
-
-	for i, r := range content {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
-			content[i] = topLevelAlphaNumericContent
-		}
-	}
-
-	return content
-}
-
-func Compress(input []rune, rawInput []rune) ([]rune, [][]rune, error) {
+func Compress(input []rune, rawInput []rune) ([]rune, error) {
 	var counter int
-	contentCounter := 0
 	content := make([]rune, len(input))
 	copy(content, input)
-	tokens := make([][]rune, 0)
 
 	for i, current := range input {
-		if current == topLevelAlphaNumericContent {
-			contentCounter++
-		}
-
 		// Append all symbols
 		if current != topLevelAlphaNumericContent {
 			content[counter] = current
@@ -59,12 +40,10 @@ func Compress(input []rune, rawInput []rune) ([]rune, [][]rune, error) {
 		if (i+1) == len(input) || input[i+1] != topLevelAlphaNumericContent {
 			content[counter] = current
 			counter++
-			tokens = append(tokens, input[i+1-contentCounter:i+1])
-			contentCounter = 0
 		}
 	}
 
-	return content[:counter], tokens, nil
+	return content[:counter], nil
 }
 
 func Maskify(input []rune, closingSym rune) ([]rune, int, [][]rune, error) {
@@ -102,9 +81,9 @@ func Maskify(input []rune, closingSym rune) ([]rune, int, [][]rune, error) {
 				return []rune{}, 0, [][]rune{}, err
 			}
 
-			// Fast forward + offset
-			//fmt.Println(string(input[i+1 : i+depth+1]))
+			// Add raw content that will be compressed
 			compressedContent = append(compressedContent, input[i+1:i+depth+1])
+			// Fast forward + offset
 			i = i + depth + 1
 
 			// Append whatever Mask returns
@@ -134,8 +113,7 @@ func (mc *MaskConsumer) Mask(input []rune) ([]rune, [][]rune, error) {
 		return []rune{}, [][]rune{}, err
 	}
 
-	compressed, _, err := Compress(maskedSymbols, input)
-	fmt.Println(string(compressed))
+	compressed, err := Compress(maskedSymbols, input)
 	if err != nil {
 		return []rune{}, [][]rune{}, err
 	}
