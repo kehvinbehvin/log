@@ -1,5 +1,6 @@
 package main
 
+// TODO: Refactor with better abstraction and rename the structs!!
 import (
 	"bufio"
 	"errors"
