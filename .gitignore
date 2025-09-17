@@ -4,3 +4,4 @@ cpu.prof
 mem.prof
 /data/
 *.swp
+.env

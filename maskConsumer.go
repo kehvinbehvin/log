@@ -19,10 +19,10 @@ var enclosingSymbols = map[rune]rune{
 }
 
 type Consumer interface {
-	Consume(chan []rune) (chan []rune, chan []int, error)
+	Consume(chan []rune) (chan Sentence, error)
 }
 
-func Compress(input []rune, rawInput []rune) ([]rune, error) {
+func Compress(input []rune, rawInput []rune) (LogMask, error) {
 	var counter int
 	content := make([]rune, len(input))
 	copy(content, input)
@@ -46,9 +46,9 @@ func Compress(input []rune, rawInput []rune) ([]rune, error) {
 	return content[:counter], nil
 }
 
-func Maskify(input []rune, closingSym rune) ([]rune, int, [][]rune, error) {
+func Maskify(input []rune, closingSym rune) ([]rune, int, []Token, error) {
 	var content []rune
-	var compressedContent [][]rune
+	var compressedContent []Token
 	var compressedContentCounter int
 
 	for i := 0; i < len(input); i++ {
@@ -78,7 +78,7 @@ func Maskify(input []rune, closingSym rune) ([]rune, int, [][]rune, error) {
 			// State B: Closing sym found but no content wanted -> empty rune slice returned
 			innerContent, depth, _, err := Maskify(input[i+1:], closing)
 			if err != nil {
-				return []rune{}, 0, [][]rune{}, err
+				return []rune{}, 0, []Token{}, err
 			}
 
 			// Add raw content that will be compressed
@@ -107,38 +107,39 @@ func NewMaskConsumer() *MaskConsumer {
 	return &MaskConsumer{}
 }
 
-func (mc *MaskConsumer) Mask(input []rune) ([]rune, [][]rune, error) {
+func (mc *MaskConsumer) Mask(input []rune) (Sentence, error) {
 	maskedSymbols, _, tokens, err := Maskify(input, 0)
 	if err != nil {
-		return []rune{}, [][]rune{}, err
+		return Sentence{}, err
 	}
 
 	compressed, err := Compress(maskedSymbols, input)
 	if err != nil {
-		return []rune{}, [][]rune{}, err
+		return Sentence{}, err
 	}
 
-	return compressed, tokens, nil
+	return Sentence{
+		Tokens: tokens,
+		Mask:   compressed,
+		Line:   input,
+	}, nil
 }
 
-func (mc *MaskConsumer) Consume(in chan []rune) (chan []rune, chan [][]rune, error) {
-	out := make(chan []rune, 100)
-	tokenOut := make(chan [][]rune, 100)
+func (mc *MaskConsumer) Consume(in chan []rune) (chan Sentence, error) {
+	sentenceChan := make(chan Sentence, 100)
 
 	go func() {
-		defer close(out)
-		defer close(tokenOut)
+		defer close(sentenceChan)
 
 		for log := range in {
-			mask, tokens, err := mc.Mask(log)
+			sentence, err := mc.Mask(log)
 			if err != nil {
 				fmt.Println("consumer error with masking")
 			}
 
-			out <- mask
-			tokenOut <- tokens
+			sentenceChan <- sentence
 		}
 	}()
 
-	return out, tokenOut, nil
+	return sentenceChan, nil
 }

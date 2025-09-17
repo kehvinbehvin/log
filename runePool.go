@@ -1,5 +1,7 @@
 package main
 
+// This package is not used but kept as an artifact of previous memory optimisation techniques
+
 import (
 	"fmt"
 	"sync/atomic"
@@ -8,12 +10,12 @@ import (
 type RunePool struct {
 	buffers chan []rune
 	bufSize int
-	gets int64
-	puts int64
+	gets    int64
+	puts    int64
 }
 
 // NewRunePool creates a bounded rune buffer pool with specified buffer size and count
-func NewRunePool(bufSize int, poolSize int) (*RunePool) {
+func NewRunePool(bufSize int, poolSize int) *RunePool {
 	if bufSize <= 0 || poolSize <= 0 {
 		panic("RunePool: Invalid parameters")
 	}
@@ -21,8 +23,8 @@ func NewRunePool(bufSize int, poolSize int) (*RunePool) {
 	runePool := &RunePool{
 		buffers: make(chan []rune, poolSize),
 		bufSize: bufSize,
-		gets: 0,
-		puts: 0,
+		gets:    0,
+		puts:    0,
 	}
 
 	for i := 0; i < poolSize; i++ {

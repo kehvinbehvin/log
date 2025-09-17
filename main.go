@@ -16,46 +16,29 @@ import (
 	// "unicode/utf8"
 )
 
-// type LogLine []rune // 03-17 16:13:38.936  1702 14638 D PowerManagerService: release:lock=189667585, flg=0x0, tag="*launch*", name=android", ws=WorkSource{10113}, uid=1000, pid=1702
+type LogLine []rune // 03-17 16:13:38.936  1702 14638 D PowerManagerService: release:lock=189667585, flg=0x0, tag="*launch*", name=android", ws=WorkSource{10113}, uid=1000, pid=1702
 
-// type LogMask []rune // Y-Y Y:Y:Y.Y  Y Y Y Y: Y:Y=Y, Y=Y, Y="X", Y=Y", Y=Y{X}, Y=Y, Y=Y
+type LogMask []rune // Y-Y Y:Y:Y.Y  Y Y Y Y: Y:Y=Y, Y=Y, Y="X", Y=Y", Y=Y{X}, Y=Y, Y=Y
 
-// type Token []rune // Represents a single unit of value in a single line of log (A Slice of the original LogLine)
+type Token []rune // Represents a single unit of value in a single line of log (A Slice of the original LogLine)
 
-// type TokenLabel string
+type TokenLabel string
 
-// type Context struct {
-// 	SystemLabel string
-// 	TokenLabels []TokenLabel
-// }
-
-// type ContextCandidate struct {
-// 	Mask LogMask
-// 	Samples []LogLine // 5-6 lines of logs with the same mask
-// }
+type ContextCandidate struct {
+	Mask    LogMask
+	Samples []LogLine // 5-6 lines of logs with the same mask
+}
 
 // type ContextManager interface {
 // 	Evaluate(ContextCandidate) (Context, error)
 // 	Verify(Context, Samples []LogLine) bool
 // }
 
-// type Sentence struct {
-// 	Tokens []Token
-// 	Mask LogMask
-// }
-
-// // Key Value Map of Labels to their underlying token
-// type LabelledTokens struct {
-// 	data map[TokenLabel]Token
-// }
-
-// type TokenLabeler interface {
-// 	LabelTokens(Context, Sentence) LabelledTokens
-// }
-
-// type ContextMapper interface {
-// 	ContextMap(Sentence) (Context, error)
-// }
+type Sentence struct {
+	Tokens []Token
+	Mask   LogMask
+	Line   LogLine
+}
 
 // type Tokenizer interface {
 // 	Tokenize(LogLine) []Token
@@ -258,13 +241,17 @@ func main() {
 	fmt.Println("Start")
 
 	var wg sync.WaitGroup
-	wg.Add(1)
-	wg.Add(1)
+	wg.Add(2)
 
 	fileReader := NewFileReader("./data/raw/mini.log")
 	maskConsumer := NewMaskConsumer()
 	fileWriter := NewFileBufferWriter("./data/results/data.log", &wg)
 	fileIntWriter := NewFileIntWriter("./data/results/data_int.log", &wg)
+	maskRegistry := NewMemoryStore()
+	contextRegistry := NewContextStore()
+	admin := NewAdmin(maskRegistry, contextRegistry, &wg)
+	contextualiser := NewSentenceContextualiser(contextRegistry, maskRegistry, &wg)
+	labeller := NewTokenLabeller(contextRegistry)
 
 	readOut, err := fileReader.Read()
 	if err != nil {
@@ -272,25 +259,36 @@ func main() {
 		return
 	}
 
-	maskOut, tokenOut, err := maskConsumer.Consume(readOut)
+	sentenceOut, err := maskConsumer.Consume(readOut)
 	if err != nil {
 		fmt.Println("error when masking")
 		return
 	}
 
-	err = fileWriter.Write(maskOut)
+	unRegistered, registered, err := admin.Administrate(sentenceOut)
 	if err != nil {
-		fmt.Println("error when writing")
+		fmt.Println("error when administrating")
 		return
 	}
 
-	err = fileIntWriter.Write(tokenOut)
+	err := contextualiser.Ingest(unRegistered, registered)
 	if err != nil {
-		fmt.Println("error when writing tokens")
+		fmt.Println("error when contextualising")
 		return
 	}
 
-	wg.Wait()
+	labelledTokensChan, err := labeller.Ingest(registered)
+	if err != nil {
+		fmt.Println("error when labelling")
+		return
+	}
+
+	go func() {
+		// Synced between admin and contextualiser
+		// as both are channel writers to registered chan
+		wg.Wait()
+		close(registered)
+	}()
 
 	if *memprofile != "" {
 		f, err := os.Create(*memprofile)

@@ -27,6 +27,12 @@ func NewMemoryStore() *MemoryStore[bool] {
 	}
 }
 
+func NewContextStore() *MemoryStore[Context] {
+	return &MemoryStore[Context]{
+		data: make(map[string]Context),
+	}
+}
+
 func (m *MemoryStore[T]) Get(key string) (T, error) {
 	value, exists := m.data[key]
 	if !exists {
