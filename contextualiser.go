@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -55,19 +54,34 @@ func (sc *SentenceContextualiser) contextualise(input ContextCandidate) (Context
 		return Context{}, err
 	}
 
-	// Convert response to JSON bytes for unmarshaling
-	responseBytes, err := json.Marshal(response)
-	if err != nil {
-		return Context{}, fmt.Errorf("failed to marshal response: %w", err)
+	// The response is a pointer to any, so we need to dereference it first
+	responseMap, ok := (*response).(map[string]interface{})
+	if !ok {
+		return Context{}, fmt.Errorf("failed to assert response as map[string]interface{}")
 	}
 
-	// Unmarshal the JSON response
-	var contextResponse ContextualiseResponse
-	if err := json.Unmarshal(responseBytes, &contextResponse); err != nil {
-		return Context{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	// Extract the labels field from the response
+	labelsInterface, exists := responseMap["labels"]
+	if !exists {
+		return Context{}, fmt.Errorf("labels field not found in response")
 	}
 
-	return Context{labels: contextResponse.Labels}, nil
+	// Type assert the labels to []interface{} and convert to []string
+	labelsSlice, ok := labelsInterface.([]interface{})
+	if !ok {
+		return Context{}, fmt.Errorf("labels field is not an array")
+	}
+
+	var labels []string
+	for _, label := range labelsSlice {
+		labelStr, ok := label.(string)
+		if !ok {
+			return Context{}, fmt.Errorf("label is not a string: %v", label)
+		}
+		labels = append(labels, labelStr)
+	}
+
+	return Context{labels: labels}, nil
 }
 
 func (sc *SentenceContextualiser) accumulate(input Sentence, registeredChan chan Sentence) error {
