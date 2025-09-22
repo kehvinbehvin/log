@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -36,10 +38,36 @@ func NewSentenceContextualiser(contextRegistry *MemoryStore[Context], maskRegist
 	}
 }
 
+type ContextualiseResponse struct {
+	Labels []string `json:"labels"`
+}
+
 func (sc *SentenceContextualiser) contextualise(input ContextCandidate) (Context, error) {
 	// Responsible for preparing an api call to openai using the information in the input.
-	sc.bClient.Functions.Invoke()
-	return Context{}, nil
+	response, err := sc.bClient.Functions.Invoke(context.TODO(), "a26dfd04-0fd7-4a77-aa45-826560d785ab", braintrust.FunctionInvokeParams{
+		Input: map[string]interface{}{
+			"examples": "<examples><i>03-17 16:13:45.382  1702  3697 D PowerManagerService: acquire lock=189667585, flags=0x1, tag=\"*launch*\", name=android, ws=WorkSource{10113}, uid=1000, pid=1702</i></examples>",
+			"template": "<template>Y-Y Y:Y:Y.Y  Y  Y Y Y: Y Y=Y, Y=Y, Y=\"X\", Y=Y, Y=Y{X}, Y=Y, Y=Y</template>",
+		},
+	})
+
+	if err != nil {
+		return Context{}, err
+	}
+
+	// Convert response to JSON bytes for unmarshaling
+	responseBytes, err := json.Marshal(response)
+	if err != nil {
+		return Context{}, fmt.Errorf("failed to marshal response: %w", err)
+	}
+
+	// Unmarshal the JSON response
+	var contextResponse ContextualiseResponse
+	if err := json.Unmarshal(responseBytes, &contextResponse); err != nil {
+		return Context{}, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	return Context{labels: contextResponse.Labels}, nil
 }
 
 func (sc *SentenceContextualiser) accumulate(input Sentence, registeredChan chan Sentence) error {

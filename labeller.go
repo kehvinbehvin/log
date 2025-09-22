@@ -31,7 +31,7 @@ func (te *TokenLabeller) LabelTokens(context Context, sentence Sentence) (Labell
 	}
 
 	// Reject any context that do not match up 100% with tokens
-	// Need to add retry handling here
+	// Need to add retry handling here (braintrust client in contextualiser should handle the retry for us)
 	if len(context.labels) != len(sentence.Tokens) {
 		return results, fmt.Errorf(
 			"token/label count mismatch: %d tokens, %d labels",

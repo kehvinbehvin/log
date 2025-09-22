@@ -1,0 +1,4 @@
+03-17 16:13:38.936  1702 14638 D PowerManagerService: release:lock=189667585, flg=0x0, tag="*launch*", name=android", ws=WorkSource{10113}, uid=1000, pid=1702
+03-17 16:13:45.382  1702  3697 D PowerManagerService: acquire lock=189667585, flags=0x1, tag="*launch*", name=android, ws=WorkSource{10113}, uid=1000, pid=1702
+03-17 16:14:22.145  2856  2856 I ActivityManager: Starting activity: Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10000000 cmp=com.example.app/.MainActivity }
+03-17 16:14:23.567  2856  3021 W ActivityManager: Activity pause timeout for ActivityRecord{42a1b2c0 u0 com.example.app/.MainActivity t15}

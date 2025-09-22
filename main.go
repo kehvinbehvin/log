@@ -56,8 +56,8 @@ func main() {
 
 	fileReader := NewFileReader("./data/raw/mini.log")
 	maskConsumer := NewMaskConsumer()
-	fileWriter := NewFileBufferWriter("./data/results/data.log", &wg)
-	fileIntWriter := NewFileIntWriter("./data/results/data_int.log", &wg)
+	_ = NewFileBufferWriter("./data/results/data.log", &wg)
+	_ = NewFileIntWriter("./data/results/data_int.log", &wg)
 	maskRegistry := NewMemoryStore()
 	contextRegistry := NewContextStore()
 	admin := NewAdmin(maskRegistry, contextRegistry, &wg)
@@ -82,13 +82,13 @@ func main() {
 		return
 	}
 
-	err := contextualiser.Ingest(unRegistered, registered)
+	err = contextualiser.Ingest(unRegistered, registered)
 	if err != nil {
 		fmt.Println("error when contextualising")
 		return
 	}
 
-	labelledTokensChan, err := labeller.Ingest(registered)
+	_, err = labeller.Ingest(registered)
 	if err != nil {
 		fmt.Println("error when labelling")
 		return
