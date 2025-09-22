@@ -1,0 +1,268 @@
+openapi: 3.0.3
+info:
+  title: Braintrust Function API
+  description: |
+    API for invoking and managing Braintrust AI functions, specifically for log parsing and labeling operations.
+
+    This API allows users to invoke AI functions that can process log data, apply templates for masking,
+    and return structured labels for log field identification.
+  version: 1.0.0
+  contact:
+    name: Braintrust
+servers:
+  - url: https://api.braintrust.dev/v1
+    description: Production server
+security:
+  - bearerAuth: []
+
+paths:
+  /function/{functionId}/invoke:
+    post:
+      summary: Invoke Function
+      description: |
+        Invokes a specific function identified by a unique UUID. The request payload includes
+        input data, metadata, and configuration options for the function execution.
+
+        For log parsing functions, this endpoint processes log examples and templates to
+        generate structured labels for log field identification.
+      operationId: invokeFunction
+      parameters:
+        - name: functionId
+          in: path
+          required: true
+          description: The unique identifier of the function to invoke
+          schema:
+            type: string
+            format: uuid
+          example: a26dfd04-0fd7-4a77-aa45-826560d785ab
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FunctionInvokeRequest'
+            example:
+              input:
+                examples: '<examples><i>03-17 16:13:45.382  1702  3697 D PowerManagerService: acquire lock=189667585, flags=0x1, tag="*launch*", name=android, ws=WorkSource{10113}, uid=1000, pid=1702</i><i>03-17 16:13:38.819  1702  8671 D PowerManagerService: acquire lock=233570404, flags=0x1, tag="View Lock", name=com.android.systemui, ws=null, uid=10037, pid=2227</i></examples>'
+                template: '<template>Y-Y Y:Y:Y.Y  Y  Y Y Y: Y Y=Y, Y=Y, Y="X", Y=Y, Y=Y{X}, Y=Y, Y=Y</template>'
+              expected: null
+              metadata:
+                property1: test
+              tags:
+                - v1
+              stream: false
+              mode: auto
+              strict: true
+              version: "380f6834d9c57732"
+      responses:
+        '200':
+          description: Function executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FunctionInvokeResponse'
+              example:
+                labels:
+                  - "Month"
+                  - "Day"
+                  - "Hour"
+                  - "Minute"
+                  - "Second"
+                  - "Millisecond"
+                  - "PID"
+                  - "TID"
+                  - "Priority"
+                  - "LogTag"
+                  - "Action"
+                  - "ParameterName"
+                  - "ParameterValue"
+        '400':
+          description: Bad request - invalid input parameters
+        '401':
+          description: Unauthorized - invalid or missing API key
+        '404':
+          description: Function not found
+        '500':
+          description: Internal server error
+
+  /function/{functionId}:
+    get:
+      summary: Get Function Details
+      description: Retrieves metadata and configuration details for a specific function
+      operationId: getFunction
+      parameters:
+        - name: functionId
+          in: path
+          required: true
+          description: The unique identifier of the function
+          schema:
+            type: string
+            format: uuid
+          example: a26dfd04-0fd7-4a77-aa45-826560d785ab
+      responses:
+        '200':
+          description: Function details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FunctionDetails'
+              example:
+                id: "a26dfd04-0fd7-4a77-aa45-826560d785ab"
+                name: "Log Labeller"
+                slug: "log-labeller-d18a"
+                description: null
+                created: "2025-09-15T23:31:14.857Z"
+                project_id: "5d2d2d22-1572-4df8-b282-98add49931b7"
+                org_id: "acf011e0-34f8-4f34-87ed-91b19b3dce5b"
+                function_type: null
+                function_data:
+                  type: "prompt"
+        '401':
+          description: Unauthorized - invalid or missing API key
+        '404':
+          description: Function not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: API key for authentication with Braintrust services
+
+  schemas:
+    FunctionInvokeRequest:
+      type: object
+      required:
+        - input
+        - mode
+        - strict
+        - version
+      properties:
+        input:
+          type: object
+          description: Input data for the function
+          properties:
+            examples:
+              type: string
+              description: |
+                XML-formatted string containing example log entries for the function to process.
+                Each example should be wrapped in <i> tags within an <examples> container.
+            template:
+              type: string
+              description: |
+                Template string that defines the expected format for log processing.
+                Uses 'Y' tokens for alphanumeric content and 'X' tokens for masked content.
+                Should be wrapped in <template> tags.
+          required:
+            - examples
+            - template
+        expected:
+          description: Expected output (currently unused, set to null)
+          nullable: true
+        metadata:
+          type: object
+          description: Additional metadata for the function execution
+          additionalProperties: true
+        tags:
+          type: array
+          description: List of tags associated with the function invocation
+          items:
+            type: string
+        stream:
+          type: boolean
+          description: Whether the function should operate in streaming mode
+          default: false
+        mode:
+          type: string
+          description: Operational mode of the function
+          enum: [auto, manual]
+          default: auto
+        strict:
+          type: boolean
+          description: Whether strict mode is enabled for additional validation
+          default: true
+        version:
+          type: string
+          description: Version identifier for the function to ensure compatibility
+
+    FunctionInvokeResponse:
+      type: object
+      properties:
+        labels:
+          type: array
+          description: |
+            Array of labels generated by the function that correspond to the
+            different components identified in the log entries
+          items:
+            type: string
+          example:
+            - "Month"
+            - "Day"
+            - "Hour"
+            - "Minute"
+            - "Second"
+            - "Millisecond"
+            - "PID"
+            - "TID"
+            - "Priority"
+            - "LogTag"
+
+    FunctionDetails:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier of the function
+        _xact_id:
+          type: string
+          description: Transaction identifier
+        project_id:
+          type: string
+          format: uuid
+          description: Project identifier
+        log_id:
+          type: string
+          description: Log identifier
+        org_id:
+          type: string
+          format: uuid
+          description: Organization identifier
+        name:
+          type: string
+          description: Human-readable name of the function
+        slug:
+          type: string
+          description: URL-friendly identifier
+        description:
+          type: string
+          nullable: true
+          description: Function description
+        created:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        prompt_data:
+          type: object
+          description: Configuration data for prompt-based functions
+        tags:
+          nullable: true
+          description: Function tags
+        metadata:
+          nullable: true
+          description: Function metadata
+        function_type:
+          nullable: true
+          description: Type of function
+        function_data:
+          type: object
+          properties:
+            type:
+              type: string
+              description: Data type (e.g., "prompt")
+        origin:
+          nullable: true
+          description: Function origin
+        function_schema:
+          nullable: true
+          description: Function schema
